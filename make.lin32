@@ -9,7 +9,7 @@ LIBS = . \
   ~/Arduino/libraries/rc-switch \
   ~/Arduino/libraries/UIPEthernet \
 
-ESP_ROOT = $(HOME)/esp8266_2.5.2/
+ESP_ROOT = $(HOME)/workspace/personal/esp8266_2.5.2/
 ESPCORE_VERSION = 252
 BUILD_ROOT = /tmp/$(MAIN_NAME)
 

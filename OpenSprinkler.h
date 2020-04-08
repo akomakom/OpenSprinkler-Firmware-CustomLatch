@@ -26,6 +26,7 @@
 #define _OPENSPRINKLER_H
 
 #include "defines.h"
+#include "akomdefines.h"
 #include "utils.h"
 #include "gpio.h"
 #include "images.h"

@@ -641,6 +641,9 @@ void OpenSprinkler::begin() {
 	if(detect_i2c(ACDR_I2CADDR)) hw_type = HW_TYPE_AC;
 	else if(detect_i2c(DCDR_I2CADDR)) hw_type = HW_TYPE_DC;
 	else if(detect_i2c(LADR_I2CADDR)) hw_type = HW_TYPE_LATCH;
+	else hw_type = HW_TYPE_LAKOM;
+
+	DEBUG_PRINT(F("HW TYPE:")); DEBUG_PRINTLN(hw_type);
 	
 	/* detect hardware revision type */
 	if(detect_i2c(MAIN_I2CADDR)) {	// check if main PCF8574 exists
@@ -673,7 +676,11 @@ void OpenSprinkler::begin() {
 		digitalWriteExt(PIN_BOOST, LOW);
 		digitalWriteExt(PIN_BOOST_EN, LOW);
 		digitalWriteExt(PIN_LATCH_COM, LOW);
-		
+
+	} else if(hw_type == HW_TYPE_LAKOM) {
+	  //
+	  PIN_LATCH_COM = D1MINI_PIN_0;
+
 	} else {
 
 		if(hw_type==HW_TYPE_DC) {
@@ -881,6 +888,30 @@ void OpenSprinkler::begin() {
 	// detect and check RTC type
 	RTC.detect();
 
+
+  if (hw_type == HW_TYPE_LAKOM) {
+    if (LAKOM_TEST_ALL_RELAYS) {
+      for(byte i=0; i < D1MINI_PINS_ALL_SIZE ; i++) {
+        pinMode(D1MINI_PINS_ALL[i], OUTPUT);
+        DEBUG_PRINT(F("Set pin mode")); DEBUG_PRINTLN(D1MINI_PINS_ALL[i]);
+
+        // Help ID pins
+        DEBUG_PRINT(F("Low"));
+        digitalWrite(D1MINI_PINS_ALL[i], LOW);
+        delay(100);
+        DEBUG_PRINT(F("High"));
+        digitalWrite(D1MINI_PINS_ALL[i], HIGH);
+      }
+    }
+
+    if (LAKOM_SAFETY_CLOSE_ON_START) {
+      for(byte i=0; i < D1MINI_PINS_STATIONS_SIZE ; i++ ) {
+        DEBUG_PRINT(F("Safety close latch")) ; DEBUG_PRINTLN(i);
+        latch_close(i);
+      }
+    }
+
+  }
 #else
 	DEBUG_PRINTLN(get_runtime_path());
 #endif
@@ -900,19 +931,32 @@ void OpenSprinkler::latch_boost() {
  *	This function sets all zone pins (including COM) to a specified value
  */
 void OpenSprinkler::latch_setallzonepins(byte value) {
-	digitalWriteExt(PIN_LATCH_COM, value);	// set latch com pin
-	// Handle driver board (on main controller)
-	if(drio->type==IOEXP_TYPE_9555) { // LATCH contorller only uses PCA9555, no other type
-		uint16_t reg = drio->i2c_read(NXP_OUTPUT_REG);	// read current output reg value
-		if(value) reg |= 0x00FF;	// first 8 zones are the lowest 8 bits of main driver board
-		else reg &= 0xFF00;
-		drio->i2c_write(NXP_OUTPUT_REG, reg); // write value to register
-	}
-	// Handle all expansion boards
-	for(byte i=0;i<MAX_EXT_BOARDS/2;i++) {	// 
-		if(expanders[i]->type==IOEXP_TYPE_9555) {
-			expanders[i]->i2c_write(NXP_OUTPUT_REG, value?0xFFFF:0x0000);
-		}
+
+  DEBUG_PRINT("Setting all zone pins:"); DEBUG_PRINTLN(value);
+
+	if (hw_type == HW_TYPE_LAKOM) {
+    for(byte i=0; i < D1MINI_PINS_STATIONS_SIZE ; i++) {
+      digitalWrite(PIN_LATCH_COM, value);
+      digitalWrite(D1MINI_PINS_STATIONS[i], value);
+      DEBUG_PRINT(F("Set pin")); DEBUG_PRINT(D1MINI_PINS_STATIONS[i]) ; DEBUG_PRINTLN(value);
+    }
+
+	} else {
+
+	  digitalWriteExt(PIN_LATCH_COM, value);	// set latch com pin
+    // Handle driver board (on main controller)
+    if(drio->type==IOEXP_TYPE_9555) { // LATCH contorller only uses PCA9555, no other type
+      uint16_t reg = drio->i2c_read(NXP_OUTPUT_REG);	// read current output reg value
+      if(value) reg |= 0x00FF;	// first 8 zones are the lowest 8 bits of main driver board
+      else reg &= 0xFF00;
+      drio->i2c_write(NXP_OUTPUT_REG, reg); // write value to register
+    }
+    // Handle all expansion boards
+    for(byte i=0;i<MAX_EXT_BOARDS/2;i++) {	//
+      if(expanders[i]->type==IOEXP_TYPE_9555) {
+        expanders[i]->i2c_write(NXP_OUTPUT_REG, value?0xFFFF:0x0000);
+      }
+    }
 	}
 }
 
@@ -920,29 +964,35 @@ void OpenSprinkler::latch_setallzonepins(byte value) {
  *	This function sets one specified zone pin to a specified value
  */
 void OpenSprinkler::latch_setzonepin(byte sid, byte value) {
-	if(sid<8) { // on main controller
-		if(drio->type==IOEXP_TYPE_9555) { // LATCH contorller only uses PCA9555, no other type
-			uint16_t reg = drio->i2c_read(NXP_OUTPUT_REG);	// read current output reg value
-			if(value) reg |= (1<<sid);
-			else reg &= (~(1<<sid));
-			drio->i2c_write(NXP_OUTPUT_REG, reg); // write value to register
-		}		 
-	} else {	// on expander
-		byte bid=(sid-8)>>4;
-		uint16_t s=(sid-8)&0x0F;
-		if(expanders[bid]->type==IOEXP_TYPE_9555) {
-			uint16_t reg = expanders[bid]->i2c_read(NXP_OUTPUT_REG);	// read current output reg value
-			if(value) reg |= (1<<s);
-			else reg &= (~(1<<s));
-			expanders[bid]->i2c_write(NXP_OUTPUT_REG, reg);
-		}
-	}
+  DEBUG_PRINT(F("Setting zone ")); DEBUG_PRINT(sid); DEBUG_PRINT(F(" aka ")); DEBUG_PRINT(D1MINI_PINS_STATIONS[sid]); DEBUG_PRINT(F(" to ")); DEBUG_PRINTLN(value);
+  if (hw_type == HW_TYPE_LAKOM) {
+    digitalWrite(D1MINI_PINS_STATIONS[sid], value);
+  } else {
+    if(sid<8) { // on main controller
+      if(drio->type==IOEXP_TYPE_9555) { // LATCH contorller only uses PCA9555, no other type
+        uint16_t reg = drio->i2c_read(NXP_OUTPUT_REG);	// read current output reg value
+        if(value) reg |= (1<<sid);
+        else reg &= (~(1<<sid));
+        drio->i2c_write(NXP_OUTPUT_REG, reg); // write value to register
+      }
+    } else {	// on expander
+      byte bid=(sid-8)>>4;
+      uint16_t s=(sid-8)&0x0F;
+      if(expanders[bid]->type==IOEXP_TYPE_9555) {
+        uint16_t reg = expanders[bid]->i2c_read(NXP_OUTPUT_REG);	// read current output reg value
+        if(value) reg |= (1<<s);
+        else reg &= (~(1<<s));
+        expanders[bid]->i2c_write(NXP_OUTPUT_REG, reg);
+      }
+    }
+  }
 }
 
 /** LATCH open / close a station
  *
  */
 void OpenSprinkler::latch_open(byte sid) {
+  DEBUG_PRINT(F("Latch open for:")); DEBUG_PRINTLN(sid);
 	latch_boost();	// boost voltage
 	latch_setallzonepins(HIGH);				// set all switches to HIGH, including COM
 	latch_setzonepin(sid, LOW); // set the specified switch to LOW
@@ -954,13 +1004,15 @@ void OpenSprinkler::latch_open(byte sid) {
 }
 
 void OpenSprinkler::latch_close(byte sid) {
+  DEBUG_PRINT(F("Latch close for:")); DEBUG_PRINTLN(sid);
 	latch_boost();	// boost voltage
-	latch_setallzonepins(LOW);				// set all switches to LOW, including COM
-	latch_setzonepin(sid, HIGH);// set the specified switch to HIGH
+	latch_setallzonepins(HIGH);				// set all switches to HIGH, including COM
+	digitalWrite(PIN_LATCH_COM, LOW);  // turn on H-Bridge (rev polarity)
+	latch_setzonepin(sid, LOW);// set the specified switch to HIGH
 	delay(1); // delay 1 ms for all gates to stablize
 	digitalWriteExt(PIN_BOOST_EN, HIGH); // dump boosted voltage
 	delay(100);											// for 100ms
-	latch_setzonepin(sid, LOW);			// set the specified switch back to LOW
+//	latch_setzonepin(sid, HIGH);			// set the specified switch back to LOW
 	digitalWriteExt(PIN_BOOST_EN, LOW);  // disable boosted voltage
 	latch_setallzonepins(HIGH);								// set all switches back to HIGH
 }
@@ -969,7 +1021,7 @@ void OpenSprinkler::latch_close(byte sid) {
  * LATCH version of apply_all_station_bits
  */
 void OpenSprinkler::latch_apply_all_station_bits() {
-	if(hw_type==HW_TYPE_LATCH && engage_booster) {
+	if(hw_type == HW_TYPE_LAKOM || (hw_type==HW_TYPE_LATCH && engage_booster)) {
 		for(byte i=0;i<nstations;i++) {
 			byte bid=i>>3;
 			byte s=i&0x07;
@@ -994,7 +1046,7 @@ void OpenSprinkler::latch_apply_all_station_bits() {
 void OpenSprinkler::apply_all_station_bits() {
 
 #if defined(ESP8266)
-	if(hw_type==HW_TYPE_LATCH) {
+	if(hw_type==HW_TYPE_LATCH || hw_type == HW_TYPE_LAKOM) {
 		// if controller type is latching, the control mechanism is different
 		// hence will be handled separately
 		latch_apply_all_station_bits(); 
