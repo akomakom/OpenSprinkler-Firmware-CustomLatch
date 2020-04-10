@@ -643,7 +643,7 @@ void OpenSprinkler::begin() {
 	else if(detect_i2c(LADR_I2CADDR)) hw_type = HW_TYPE_LATCH;
 	else hw_type = HW_TYPE_LAKOM;
 
-	DEBUG_PRINT(F("HW TYPE:")); DEBUG_PRINTLN(hw_type);
+	DEBUG_PRINT(F("Detected HW TYPE:")); DEBUG_PRINTLN(hw_type);
 	
 	/* detect hardware revision type */
 	if(detect_i2c(MAIN_I2CADDR)) {	// check if main PCF8574 exists
@@ -678,7 +678,7 @@ void OpenSprinkler::begin() {
 		digitalWriteExt(PIN_LATCH_COM, LOW);
 
 	} else if(hw_type == HW_TYPE_LAKOM) {
-	  //
+	  // Common H-Bridge relay control pin
 	  PIN_LATCH_COM = D1MINI_PIN_0;
 
 	} else {
