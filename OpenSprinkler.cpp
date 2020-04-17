@@ -996,12 +996,14 @@ void OpenSprinkler::latch_open(byte sid) {
 	DEBUG_PRINT(F("Latch open for:")); DEBUG_PRINTLN(sid);
 	for (byte i = 0 ; i < LAKOM_RELAY_TRIGGER_COUNT ; i++) {
 		latch_boost();	// boost voltage
-		delay(100);											// in case we're looping
+		if (i>0) {
+			delay(LAKOM_LATCH_ATTEMPT_DELAY);											// in case we're looping
+		}
 		latch_setallzonepins(HIGH);				// set all switches to HIGH, including COM
 		latch_setzonepin(sid, LOW); // set the specified switch to LOW
 		delay(1); // delay 1 ms for all gates to stablize
 		digitalWriteExt(PIN_BOOST_EN, HIGH); // dump boosted voltage
-		delay(100);											// for 100ms
+		delay(LAKOM_LATCH_ON_TIME);											// for 100ms
 		latch_setzonepin(sid, HIGH);				// set the specified switch back to HIGH
 		digitalWriteExt(PIN_BOOST_EN, LOW);  // disable boosted voltage
 	}
@@ -1014,11 +1016,13 @@ void OpenSprinkler::latch_close(byte sid) {
 	digitalWrite(PIN_LATCH_COM, LOW);  // turn on H-Bridge (rev polarity)
 	for (byte i = 0 ; i < LAKOM_RELAY_TRIGGER_COUNT ; i++) {
 		latch_boost();	// boost voltage
-		delay(100);											// in case we're looping
+		if (i>0) {
+			delay(LAKOM_LATCH_ATTEMPT_DELAY);											// in case we're looping
+		}
 		latch_setzonepin(sid, LOW);// set the specified switch to ON
 		delay(1); // delay 1 ms for all gates to stablize
 		digitalWriteExt(PIN_BOOST_EN, HIGH); // dump boosted voltage
-		delay(100);											// for 100ms
+		delay(LAKOM_LATCH_ON_TIME);											// for 100ms
 		latch_setzonepin(sid, HIGH);			// set the specified switch back to OFF
 		digitalWriteExt(PIN_BOOST_EN, LOW);  // disable boosted voltage
 	}
