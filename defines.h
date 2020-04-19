@@ -48,7 +48,7 @@ typedef unsigned long ulong;
 #define HW_TYPE_AC           0xAC   // standard 24VAC for 24VAC solenoids only, with triacs
 #define HW_TYPE_DC           0xDC   // DC powered, for both DC and 24VAC solenoids, with boost converter and MOSFETs
 #define HW_TYPE_LATCH        0x1A   // DC powered, for DC latching solenoids only, with boost converter and H-bridges
-#define HW_TYPE_LAKOM        0x1B   // DC powered, for DC latching solenoids only, directly wired via relays, no expander
+#define HW_TYPE_DIRECTLATCH  0x1B   // DC powered, for DC latching solenoids only, directly wired via relays, no expander
 
 #define HW_TYPE_UNKNOWN      0xFF
 

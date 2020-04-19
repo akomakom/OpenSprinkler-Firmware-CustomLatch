@@ -641,7 +641,7 @@ void OpenSprinkler::begin() {
 	if(detect_i2c(ACDR_I2CADDR)) hw_type = HW_TYPE_AC;
 	else if(detect_i2c(DCDR_I2CADDR)) hw_type = HW_TYPE_DC;
 	else if(detect_i2c(LADR_I2CADDR)) hw_type = HW_TYPE_LATCH;
-	else hw_type = HW_TYPE_LAKOM;
+	else hw_type = HW_TYPE_DIRECTLATCH;
 
 	DEBUG_PRINT(F("Detected HW TYPE:")); DEBUG_PRINTLN(hw_type);
 	
@@ -677,7 +677,7 @@ void OpenSprinkler::begin() {
 		digitalWriteExt(PIN_BOOST_EN, LOW);
 		digitalWriteExt(PIN_LATCH_COM, LOW);
 
-	} else if(hw_type == HW_TYPE_LAKOM) {
+	} else if(hw_type == HW_TYPE_DIRECTLATCH) {
 	  // Common H-Bridge relay control pin
 	  PIN_LATCH_COM = D1MINI_PIN_0;
 
@@ -889,12 +889,12 @@ void OpenSprinkler::begin() {
 	RTC.detect();
 
 
-	if (hw_type == HW_TYPE_LAKOM) {
+	if (hw_type == HW_TYPE_DIRECTLATCH) {
 		for(byte i=0; i < D1MINI_PINS_ALL_SIZE ; i++) {
 			pinMode(D1MINI_PINS_ALL[i], OUTPUT);
 			DEBUG_PRINT(F("Set pin mode")); DEBUG_PRINTLN(D1MINI_PINS_ALL[i]);
 				
-			if (LAKOM_TEST_ALL_RELAYS) {
+			if (DIRECTLATCH_TEST_ALL_RELAYS) {
 				// Help ID pins
 				DEBUG_PRINT(F("Low"));
 				digitalWrite(D1MINI_PINS_ALL[i], LOW);
@@ -904,7 +904,7 @@ void OpenSprinkler::begin() {
 			}
 		}
 		
-		if (LAKOM_SAFETY_CLOSE_ON_START) {
+		if (DIRECTLATCH_SAFETY_CLOSE_ON_START) {
 			for(byte i=0; i < D1MINI_PINS_STATIONS_SIZE ; i++ ) {
 				DEBUG_PRINT(F("Safety close latch")) ; DEBUG_PRINTLN(i);
 				latch_close(i);
@@ -933,7 +933,7 @@ void OpenSprinkler::latch_setallzonepins(byte value) {
 
 	DEBUG_PRINT("Setting all zone pins:"); DEBUG_PRINTLN(value);
 
-	if (hw_type == HW_TYPE_LAKOM) {
+	if (hw_type == HW_TYPE_DIRECTLATCH) {
 		for(byte i=0; i < D1MINI_PINS_STATIONS_SIZE ; i++) {
 		  digitalWrite(PIN_LATCH_COM, value);
 		  digitalWrite(D1MINI_PINS_STATIONS[i], value);
@@ -962,7 +962,7 @@ void OpenSprinkler::latch_setallzonepins(byte value) {
  */
 void OpenSprinkler::latch_setzonepin(byte sid, byte value) {
 	DEBUG_PRINT(F("Setting zone ")); DEBUG_PRINT(sid); DEBUG_PRINT(F(" aka ")); DEBUG_PRINT(D1MINI_PINS_STATIONS[sid]); DEBUG_PRINT(F(" to ")); DEBUG_PRINTLN(value);
-	if (hw_type == HW_TYPE_LAKOM) {
+	if (hw_type == HW_TYPE_DIRECTLATCH) {
 		if (sid < D1MINI_PINS_STATIONS_SIZE) {
 			digitalWrite(D1MINI_PINS_STATIONS[sid], value);
 		} else {
@@ -994,16 +994,16 @@ void OpenSprinkler::latch_setzonepin(byte sid, byte value) {
  */
 void OpenSprinkler::latch_open(byte sid) {
 	DEBUG_PRINT(F("Latch open for:")); DEBUG_PRINTLN(sid);
-	for (byte i = 0 ; i < LAKOM_RELAY_TRIGGER_COUNT ; i++) {
+	for (byte i = 0 ; i < DIRECTLATCH_RELAY_TRIGGER_COUNT ; i++) {
 		latch_boost();	// boost voltage
 		if (i>0) {
-			delay(LAKOM_LATCH_ATTEMPT_DELAY);											// in case we're looping
+			delay(DIRECTLATCH_LATCH_ATTEMPT_DELAY);											// in case we're looping
 		}
 		latch_setallzonepins(HIGH);				// set all switches to HIGH, including COM
 		latch_setzonepin(sid, LOW); // set the specified switch to LOW
 		delay(1); // delay 1 ms for all gates to stablize
 		digitalWriteExt(PIN_BOOST_EN, HIGH); // dump boosted voltage
-		delay(LAKOM_LATCH_ON_TIME);											// for 100ms
+		delay(DIRECTLATCH_LATCH_ON_TIME);											// for 100ms
 		latch_setzonepin(sid, HIGH);				// set the specified switch back to HIGH
 		digitalWriteExt(PIN_BOOST_EN, LOW);  // disable boosted voltage
 	}
@@ -1014,15 +1014,15 @@ void OpenSprinkler::latch_close(byte sid) {
 
 	latch_setallzonepins(HIGH);				// set all switches to HIGH, including COM
 	digitalWrite(PIN_LATCH_COM, LOW);  // turn on H-Bridge (rev polarity)
-	for (byte i = 0 ; i < LAKOM_RELAY_TRIGGER_COUNT ; i++) {
+	for (byte i = 0 ; i < DIRECTLATCH_RELAY_TRIGGER_COUNT ; i++) {
 		latch_boost();	// boost voltage
 		if (i>0) {
-			delay(LAKOM_LATCH_ATTEMPT_DELAY);											// in case we're looping
+			delay(DIRECTLATCH_LATCH_ATTEMPT_DELAY);											// in case we're looping
 		}
 		latch_setzonepin(sid, LOW);// set the specified switch to ON
 		delay(1); // delay 1 ms for all gates to stablize
 		digitalWriteExt(PIN_BOOST_EN, HIGH); // dump boosted voltage
-		delay(LAKOM_LATCH_ON_TIME);											// for 100ms
+		delay(DIRECTLATCH_LATCH_ON_TIME);											// for 100ms
 		latch_setzonepin(sid, HIGH);			// set the specified switch back to OFF
 		digitalWriteExt(PIN_BOOST_EN, LOW);  // disable boosted voltage
 	}
@@ -1033,7 +1033,7 @@ void OpenSprinkler::latch_close(byte sid) {
  * LATCH version of apply_all_station_bits
  */
 void OpenSprinkler::latch_apply_all_station_bits() {
-	if(hw_type==HW_TYPE_LAKOM || (hw_type==HW_TYPE_LATCH && engage_booster)) {
+	if(hw_type==HW_TYPE_DIRECTLATCH || (hw_type==HW_TYPE_LATCH && engage_booster)) {
 		for(byte i=0;i<nstations;i++) {
 			byte bid=i>>3;
 			byte s=i&0x07;
@@ -1041,10 +1041,10 @@ void OpenSprinkler::latch_apply_all_station_bits() {
 			if(station_bits[bid] & mask) {
 				if(prev_station_bits[bid] & mask) continue; // already set
 				latch_open(i);
-				if (LAKOM_LATCH_OPEN_JIGGLE_THE_HANDLE) {
-					delay(LAKOM_LATCH_ATTEMPT_DELAY);
+				if (DIRECTLATCH_LATCH_OPEN_JIGGLE_THE_HANDLE) {
+					delay(DIRECTLATCH_LATCH_ATTEMPT_DELAY);
 					latch_close(i);
-					delay(LAKOM_LATCH_ATTEMPT_DELAY);
+					delay(DIRECTLATCH_LATCH_ATTEMPT_DELAY);
 					latch_open(i);
 				}
 			} else {
@@ -1064,7 +1064,7 @@ void OpenSprinkler::latch_apply_all_station_bits() {
 void OpenSprinkler::apply_all_station_bits() {
 
 #if defined(ESP8266)
-	if(hw_type==HW_TYPE_LATCH || hw_type==HW_TYPE_LAKOM) {
+	if(hw_type==HW_TYPE_LATCH || hw_type==HW_TYPE_DIRECTLATCH) {
 		// if controller type is latching, the control mechanism is different
 		// hence will be handled separately
 		latch_apply_all_station_bits(); 
