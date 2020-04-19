@@ -1041,6 +1041,12 @@ void OpenSprinkler::latch_apply_all_station_bits() {
 			if(station_bits[bid] & mask) {
 				if(prev_station_bits[bid] & mask) continue; // already set
 				latch_open(i);
+				if (LAKOM_LATCH_OPEN_JIGGLE_THE_HANDLE) {
+					delay(LAKOM_LATCH_ATTEMPT_DELAY);
+					latch_close(i);
+					delay(LAKOM_LATCH_ATTEMPT_DELAY);
+					latch_open(i);
+				}
 			} else {
 				if(!(prev_station_bits[bid] & mask)) continue; // already reset
 				latch_close(i);

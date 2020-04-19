@@ -46,16 +46,18 @@ static const byte D1MINI_PINS_STATIONS[] = {
 static const byte D1MINI_PINS_STATIONS_SIZE = sizeof(D1MINI_PINS_STATIONS)/sizeof(byte);
 
 // cycle all relays on boot to help identify order, 1/0
-#define LAKOM_TEST_ALL_RELAYS   	0
+#define LAKOM_TEST_ALL_RELAYS   			0
 // close all valves in case power failed during a cycle, 1/0
-#define LAKOM_SAFETY_CLOSE_ON_START 1
+#define LAKOM_SAFETY_CLOSE_ON_START 		1
 // how many times the valve relay should be triggered to make extra sure that it worked.
-// 1 is normal operation (open and close once).  100ms sleep between tries.
-#define LAKOM_RELAY_TRIGGER_COUNT  	2
-
+// 1 is normal operation (open and close once), 2+ means try more than once.
+// LAKOM_LATCH_ATTEMPT_DELAY between tries.
+#define LAKOM_RELAY_TRIGGER_COUNT  			2
+//Attempt to fix a flaky valve issue by (when turning on): 1/0
+// ON->OFF->ON (each ON cycle still honors LAKOM_RELAY_TRIGGER_COUNT)
+#define LAKOM_LATCH_OPEN_JIGGLE_THE_HANDLE 	1
 // ms: how long to turn on relay for.
-// This may vary depending on valve/available power
-#define LAKOM_LATCH_ON_TIME 	100
-
+// This may need to vary depending on valve/available power
+#define LAKOM_LATCH_ON_TIME 				100
 // ms: how long to wait between retries if LAKOM_RELAY_TRIGGER_COUNT > 1
-#define LAKOM_LATCH_ATTEMPT_DELAY	500
+#define LAKOM_LATCH_ATTEMPT_DELAY			500
