@@ -61,9 +61,9 @@ First two relays are used for H-Bridge the same way as in Option A
 * The **valves** I am using are actually a commodity hose timer (a Melnor 73280), with internal circuitry disconnected and latching valves wired directly to my relays.
 * I needed a **capacitor** to stabilize power supply to the ESP8266 because of voltage drop (or spikes) when valves cycled.  You may not.  I used what I had handy.
 
+![All Parts](readme/all-parts.png)
+
 #### Option B
 * **H-Bridge**: The first two relays are used for the H-Bridge, leaving 14 usable stations.
 * **Valves**: I am still using gutted Melnor timers (multiple) like in Option A.
 
-
-![All Parts](readme/all-parts.png)
