@@ -318,6 +318,7 @@ private:
     static void DirectLatch_RelayON(unsigned int number);
     static void DirectLatch_RelayOFF(unsigned int number);
     static void DirectLatch_RelaySET(unsigned int number, bool on);
+    static void DirectLatch_RelaySETALL(bool on);
     #endif
 
 	#endif

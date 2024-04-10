@@ -895,8 +895,12 @@ void OpenSprinkler::begin() {
 	if (hw_type == HW_TYPE_DIRECTLATCH) {
 #if defined(HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16)
         DirectLatch_HC595Init();
-        for(byte i = 1 ; i <= HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16_NUMRELAYS ; i++) {
-            if (DIRECTLATCH_TEST_ALL_RELAYS) {
+        if (DIRECTLATCH_TEST_ALL_RELAYS) {
+            DirectLatch_RelaySETALL(true);
+            delay(100);
+            DirectLatch_RelaySETALL(false);
+            delay(500);
+            for(byte i = 1 ; i <= HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16_NUMRELAYS ; i++) {
                 // Help ID pins
                 DEBUG_PRINT(F("On"));
                 DirectLatch_RelayON(i);
@@ -904,8 +908,10 @@ void OpenSprinkler::begin() {
                 DEBUG_PRINT(F("Off"));
                 DirectLatch_RelayOFF(i);
             }
-            if (DIRECTLATCH_SAFETY_CLOSE_ON_START) {
-                DirectLatch_RelayOFF(i);
+        }
+        if (DIRECTLATCH_SAFETY_CLOSE_ON_START) {
+            for(byte i = 0 ; i <= (HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16_NUMRELAYS - HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16_FIRST_STATION_RELAY) ; i++) {
+                latch_close(i); // this one is 0-based
             }
         }
 #else
@@ -955,18 +961,11 @@ void OpenSprinkler::latch_setallzonepins(byte value) {
 	DEBUG_PRINT("Setting all zone pins:"); DEBUG_PRINTLN(value);
 
 	if (hw_type == HW_TYPE_DIRECTLATCH) {
-#if defined(HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16)
-	    for(byte i = 1 ; i <= HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16_NUMRELAYS ; i++) {
-	        DEBUG_PRINT(F("Set relay: ")); DEBUG_PRINT(i) ; DEBUG_PRINTLN(value);
-	        DirectLatch_RelaySET(i, !value);
-        }
-#else
 		for(byte i=0; i < D1MINI_PINS_STATIONS_SIZE ; i++) {
 		  digitalWrite(PIN_LATCH_COM, value);
 		  digitalWrite(D1MINI_PINS_STATIONS[i], value);
 		  DEBUG_PRINT(F("Set pin")); DEBUG_PRINT(D1MINI_PINS_STATIONS[i]) ; DEBUG_PRINTLN(value);
 		}
-#endif
 	} else {
 		digitalWriteExt(PIN_LATCH_COM, value);	// set latch com pin
     	// Handle driver board (on main controller)
@@ -991,15 +990,11 @@ void OpenSprinkler::latch_setallzonepins(byte value) {
 void OpenSprinkler::latch_setzonepin(byte sid, byte value) {
 	DEBUG_PRINT(F("Setting zone ")); DEBUG_PRINT(sid); DEBUG_PRINT(F(" aka ")); DEBUG_PRINT(D1MINI_PINS_STATIONS[sid]); DEBUG_PRINT(F(" to ")); DEBUG_PRINTLN(value);
 	if (hw_type == HW_TYPE_DIRECTLATCH) {
-#if defined(HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16)
-        DirectLatch_RelaySET(sid + 1, !value);
-#else
 		if (sid < D1MINI_PINS_STATIONS_SIZE) {
 			digitalWrite(D1MINI_PINS_STATIONS[sid], value);
 		} else {
 			DEBUG_PRINT(F("Ignoring out of range station number")); DEBUG_PRINTLN(sid);
 		}
-#endif
 	} else {
 		if(sid<8) { // on main controller
 			if(drio->type==IOEXP_TYPE_9555) { // LATCH contorller only uses PCA9555, no other type
@@ -1027,38 +1022,59 @@ void OpenSprinkler::latch_setzonepin(byte sid, byte value) {
 void OpenSprinkler::latch_open(byte sid) {
 	DEBUG_PRINT(F("Latch open for:")); DEBUG_PRINTLN(sid);
 	for (byte i = 0 ; i < DIRECTLATCH_RELAY_TRIGGER_COUNT ; i++) {
-		latch_boost();	// boost voltage
-		if (i>0) {
-			delay(DIRECTLATCH_LATCH_ATTEMPT_DELAY);											// in case we're looping
-		}
-		latch_setallzonepins(HIGH);				// set all switches to HIGH, including COM
-		latch_setzonepin(sid, LOW); // set the specified switch to LOW
-		delay(1); // delay 1 ms for all gates to stablize
-		digitalWriteExt(PIN_BOOST_EN, HIGH); // dump boosted voltage
-		delay(DIRECTLATCH_LATCH_ON_TIME);											// for 100ms
-		latch_setzonepin(sid, HIGH);				// set the specified switch back to HIGH
-		digitalWriteExt(PIN_BOOST_EN, LOW);  // disable boosted voltage
+        if (i>0) {
+            delay(DIRECTLATCH_LATCH_ATTEMPT_DELAY);											// in case we're looping
+        }
+        #if defined(HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16)
+            DirectLatch_RelaySETALL(false);
+            DirectLatch_RelayON(sid + HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16_FIRST_STATION_RELAY);
+            delay(DIRECTLATCH_LATCH_ON_TIME);
+            DirectLatch_RelaySETALL(false);
+        #else
+            latch_boost();	// boost voltage
+            latch_setallzonepins(HIGH);				// set all switches to HIGH, including COM
+            latch_setzonepin(sid, LOW); // set the specified switch to LOW
+            delay(1); // delay 1 ms for all gates to stablize
+            digitalWriteExt(PIN_BOOST_EN, HIGH); // dump boosted voltage
+            delay(DIRECTLATCH_LATCH_ON_TIME);											// for 100ms
+            latch_setzonepin(sid, HIGH);				// set the specified switch back to HIGH
+            digitalWriteExt(PIN_BOOST_EN, LOW);  // disable boosted voltage
+        #endif
 	}
 }
 
 void OpenSprinkler::latch_close(byte sid) {
 	DEBUG_PRINT(F("Latch close for:")); DEBUG_PRINTLN(sid);
-
-	latch_setallzonepins(HIGH);				// set all switches to HIGH, including COM
-	digitalWrite(PIN_LATCH_COM, LOW);  // turn on H-Bridge (rev polarity)
 	for (byte i = 0 ; i < DIRECTLATCH_RELAY_TRIGGER_COUNT ; i++) {
-		latch_boost();	// boost voltage
-		if (i>0) {
-			delay(DIRECTLATCH_LATCH_ATTEMPT_DELAY);											// in case we're looping
-		}
-		latch_setzonepin(sid, LOW);// set the specified switch to ON
-		delay(1); // delay 1 ms for all gates to stablize
-		digitalWriteExt(PIN_BOOST_EN, HIGH); // dump boosted voltage
-		delay(DIRECTLATCH_LATCH_ON_TIME);											// for 100ms
-		latch_setzonepin(sid, HIGH);			// set the specified switch back to OFF
-		digitalWriteExt(PIN_BOOST_EN, LOW);  // disable boosted voltage
-	}
-	latch_setallzonepins(HIGH);								// set all switches back to HIGH
+        if (i>0) {
+            delay(DIRECTLATCH_LATCH_ATTEMPT_DELAY);											// in case we're looping
+        }
+        #if defined(HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16)
+            DirectLatch_RelaySETALL(false);
+            // turn on H-Bridge (2 relays, usually)
+            for (byte i : HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16_HBRIDGE_RELAYS) {
+                DirectLatch_RelayON(i);
+            }
+            delay(10); // give relays some time
+            DirectLatch_RelayON(sid + HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16_FIRST_STATION_RELAY);
+            delay(DIRECTLATCH_LATCH_ON_TIME);
+            DirectLatch_RelaySETALL(false);
+        #else
+
+            latch_setallzonepins(HIGH);				// set all switches to HIGH, including COM
+            digitalWrite(PIN_LATCH_COM, LOW);  // turn on H-Bridge (rev polarity)
+            latch_boost();	// boost voltage
+            delay(10);
+            latch_setzonepin(sid, LOW);// set the specified switch to ON
+            delay(1); // delay 1 ms for all gates to stablize
+            digitalWriteExt(PIN_BOOST_EN, HIGH); // dump boosted voltage
+            delay(DIRECTLATCH_LATCH_ON_TIME);											// for 100ms
+            latch_setzonepin(sid, HIGH);			// set the specified switch back to OFF
+            digitalWriteExt(PIN_BOOST_EN, LOW);  // disable boosted voltage
+
+            latch_setallzonepins(HIGH);								// set all switches back to HIGH
+        #endif
+    }
 }
 
 /**
@@ -2675,6 +2691,7 @@ void OpenSprinkler::detect_expanders() {
 #if defined(HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16)
 
 void OpenSprinkler::DirectLatch_HC595Init(void) {
+    DEBUG_PRINT(F("Initializing HC595"));
     pinMode(HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16_HC595_SI_PIN,  OUTPUT);      //输出模式
     pinMode(HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16_HC595_SCK_PIN, OUTPUT);      //输出模式
     pinMode(HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16_HC595_RCK_PIN, OUTPUT);      //输出模式
@@ -2687,6 +2704,8 @@ void OpenSprinkler::DirectLatch_HC595Init(void) {
 
 void OpenSprinkler::DirectLatch_HC595SendData(unsigned int OutData)
 {
+    DEBUG_PRINT(F("HC595 Sending Data: ")); DEBUG_PRINTLN(OutData);
+    DirectLatch_HC595Init(); //maybe someone messed with my pins, re-init
     unsigned char i; //发送数据时做循环使用临时变量
     for (i = 0; i < 16; i++) //将16位数据按位发送
     {
@@ -2710,6 +2729,7 @@ void OpenSprinkler::DirectLatch_HC595SendData(unsigned int OutData)
 
 void OpenSprinkler::DirectLatch_RelayON(unsigned int number)
 {
+  DEBUG_PRINT(F("HC595 Relay ON: ")); DEBUG_PRINTLN(number);
   switch(number)
   {
     case 1  : DirectLatch_RelayData = DirectLatch_RelayData | 0x0001; break;
@@ -2734,6 +2754,7 @@ void OpenSprinkler::DirectLatch_RelayON(unsigned int number)
 }
 void OpenSprinkler::DirectLatch_RelayOFF(unsigned int number)
 {
+  DEBUG_PRINT(F("HC595 Relay OFF: ")); DEBUG_PRINTLN(number);
   switch(number)
   {
     case 1  : DirectLatch_RelayData = DirectLatch_RelayData & 0xFFFE; break;
@@ -2763,6 +2784,11 @@ void OpenSprinkler::DirectLatch_RelaySET(unsigned int number, bool ON) {
     } else {
         DirectLatch_RelayOFF(number);
     }
+}
+
+void OpenSprinkler::DirectLatch_RelaySETALL(bool ON) {
+    DirectLatch_RelayData = ON ? 0xFFFF : 0x0000;
+    DirectLatch_HC595SendData(DirectLatch_RelayData);
 }
 
 #endif
