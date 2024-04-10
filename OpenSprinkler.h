@@ -310,6 +310,16 @@ private:
 	static void latch_setallzonepins(byte value);
 	static void latch_apply_all_station_bits();
 	static byte prev_station_bits[];
+
+    #if defined(HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16)
+    static unsigned int DirectLatch_RelayData;
+    static void DirectLatch_HC595Init();
+    static void DirectLatch_HC595SendData(unsigned int OutData);
+    static void DirectLatch_RelayON(unsigned int number);
+    static void DirectLatch_RelayOFF(unsigned int number);
+    static void DirectLatch_RelaySET(unsigned int number, bool on);
+    #endif
+
 	#endif
 #endif // LCD functions
 	static byte engage_booster;

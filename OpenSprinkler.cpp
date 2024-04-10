@@ -81,6 +81,9 @@ extern char ether_buffer[];
 	String OpenSprinkler::wifi_ssid="";
 	String OpenSprinkler::wifi_pass="";
 	byte OpenSprinkler::wifi_testmode = 0;
+	#if defined(HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16)
+	unsigned int OpenSprinkler::DirectLatch_RelayData = 0x0000;
+	#endif
 #elif defined(ARDUINO)
 	LiquidCrystal OpenSprinkler::lcd;
 	extern SdFat sd;
@@ -890,6 +893,23 @@ void OpenSprinkler::begin() {
 
 
 	if (hw_type == HW_TYPE_DIRECTLATCH) {
+#if defined(HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16)
+        DirectLatch_HC595Init();
+        for(byte i = 1 ; i <= HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16_NUMRELAYS ; i++) {
+            if (DIRECTLATCH_TEST_ALL_RELAYS) {
+                // Help ID pins
+                DEBUG_PRINT(F("On"));
+                DirectLatch_RelayON(i);
+                delay(100);
+                DEBUG_PRINT(F("Off"));
+                DirectLatch_RelayOFF(i);
+            }
+            if (DIRECTLATCH_SAFETY_CLOSE_ON_START) {
+                DirectLatch_RelayOFF(i);
+            }
+        }
+#else
+
 		for(byte i=0; i < D1MINI_PINS_ALL_SIZE ; i++) {
 			pinMode(D1MINI_PINS_ALL[i], OUTPUT);
 			DEBUG_PRINT(F("Set pin mode")); DEBUG_PRINTLN(D1MINI_PINS_ALL[i]);
@@ -910,6 +930,7 @@ void OpenSprinkler::begin() {
 				latch_close(i);
 			}
 		}
+#endif
 	}
 #else
 	DEBUG_PRINTLN(get_runtime_path());
@@ -934,11 +955,18 @@ void OpenSprinkler::latch_setallzonepins(byte value) {
 	DEBUG_PRINT("Setting all zone pins:"); DEBUG_PRINTLN(value);
 
 	if (hw_type == HW_TYPE_DIRECTLATCH) {
+#if defined(HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16)
+	    for(byte i = 1 ; i <= HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16_NUMRELAYS ; i++) {
+	        DEBUG_PRINT(F("Set relay: ")); DEBUG_PRINT(i) ; DEBUG_PRINTLN(value);
+	        DirectLatch_RelaySET(i, !value);
+        }
+#else
 		for(byte i=0; i < D1MINI_PINS_STATIONS_SIZE ; i++) {
 		  digitalWrite(PIN_LATCH_COM, value);
 		  digitalWrite(D1MINI_PINS_STATIONS[i], value);
 		  DEBUG_PRINT(F("Set pin")); DEBUG_PRINT(D1MINI_PINS_STATIONS[i]) ; DEBUG_PRINTLN(value);
 		}
+#endif
 	} else {
 		digitalWriteExt(PIN_LATCH_COM, value);	// set latch com pin
     	// Handle driver board (on main controller)
@@ -963,11 +991,15 @@ void OpenSprinkler::latch_setallzonepins(byte value) {
 void OpenSprinkler::latch_setzonepin(byte sid, byte value) {
 	DEBUG_PRINT(F("Setting zone ")); DEBUG_PRINT(sid); DEBUG_PRINT(F(" aka ")); DEBUG_PRINT(D1MINI_PINS_STATIONS[sid]); DEBUG_PRINT(F(" to ")); DEBUG_PRINTLN(value);
 	if (hw_type == HW_TYPE_DIRECTLATCH) {
+#if defined(HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16)
+        DirectLatch_RelaySET(sid + 1, !value);
+#else
 		if (sid < D1MINI_PINS_STATIONS_SIZE) {
 			digitalWrite(D1MINI_PINS_STATIONS[sid], value);
 		} else {
 			DEBUG_PRINT(F("Ignoring out of range station number")); DEBUG_PRINTLN(sid);
 		}
+#endif
 	} else {
 		if(sid<8) { // on main controller
 			if(drio->type==IOEXP_TYPE_9555) { // LATCH contorller only uses PCA9555, no other type
@@ -2638,4 +2670,99 @@ void OpenSprinkler::detect_expanders() {
 		}
 	}
 }
+#endif
+
+#if defined(HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16)
+
+void OpenSprinkler::DirectLatch_HC595Init(void) {
+    pinMode(HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16_HC595_SI_PIN,  OUTPUT);      //输出模式
+    pinMode(HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16_HC595_SCK_PIN, OUTPUT);      //输出模式
+    pinMode(HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16_HC595_RCK_PIN, OUTPUT);      //输出模式
+    pinMode(HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16_HC595_G_PIN,   OUTPUT);      //输出模式
+    digitalWrite(HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16_HC595_G_PIN, HIGH);
+    digitalWrite(HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16_HC595_SI_PIN, LOW);
+    digitalWrite(HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16_HC595_SCK_PIN,LOW);
+    digitalWrite(HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16_HC595_RCK_PIN,LOW);
+}
+
+void OpenSprinkler::DirectLatch_HC595SendData(unsigned int OutData)
+{
+    unsigned char i; //发送数据时做循环使用临时变量
+    for (i = 0; i < 16; i++) //将16位数据按位发送
+    {
+        digitalWrite(HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16_HC595_SCK_PIN,LOW);  //时钟线低电平
+    if ((OutData & 0x8000) == 0x8000) //判断数据高低位
+    {
+        digitalWrite(HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16_HC595_SI_PIN,HIGH); //发送数据高位
+    }
+    else
+    {
+        digitalWrite(HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16_HC595_SI_PIN,LOW); //发送数据低位
+    }
+    OutData = OutData << 1; //数据左移1位
+    digitalWrite(HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16_HC595_SCK_PIN,HIGH);  //时钟线高电平
+    }
+    //上升沿输出数据
+    digitalWrite(HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16_HC595_RCK_PIN,LOW);
+    digitalWrite(HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16_HC595_RCK_PIN,HIGH);
+    digitalWrite(HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16_HC595_G_PIN,LOW);
+}
+
+void OpenSprinkler::DirectLatch_RelayON(unsigned int number)
+{
+  switch(number)
+  {
+    case 1  : DirectLatch_RelayData = DirectLatch_RelayData | 0x0001; break;
+    case 2  : DirectLatch_RelayData = DirectLatch_RelayData | 0x0002; break;
+    case 3  : DirectLatch_RelayData = DirectLatch_RelayData | 0x0004; break;
+    case 4  : DirectLatch_RelayData = DirectLatch_RelayData | 0x0008; break;
+    case 5  : DirectLatch_RelayData = DirectLatch_RelayData | 0x0010; break;
+    case 6  : DirectLatch_RelayData = DirectLatch_RelayData | 0x0020; break;
+    case 7  : DirectLatch_RelayData = DirectLatch_RelayData | 0x0040; break;
+    case 8  : DirectLatch_RelayData = DirectLatch_RelayData | 0x0080; break;
+    case 9  : DirectLatch_RelayData = DirectLatch_RelayData | 0x0100; break;
+    case 10 : DirectLatch_RelayData = DirectLatch_RelayData | 0x0200; break;
+    case 11 : DirectLatch_RelayData = DirectLatch_RelayData | 0x0400; break;
+    case 12 : DirectLatch_RelayData = DirectLatch_RelayData | 0x0800; break;
+    case 13 : DirectLatch_RelayData = DirectLatch_RelayData | 0x1000; break;
+    case 14 : DirectLatch_RelayData = DirectLatch_RelayData | 0x2000; break;
+    case 15 : DirectLatch_RelayData = DirectLatch_RelayData | 0x4000; break;
+    case 16 : DirectLatch_RelayData = DirectLatch_RelayData | 0x8000; break;
+    default : break;
+  }
+  DirectLatch_HC595SendData(DirectLatch_RelayData);
+}
+void OpenSprinkler::DirectLatch_RelayOFF(unsigned int number)
+{
+  switch(number)
+  {
+    case 1  : DirectLatch_RelayData = DirectLatch_RelayData & 0xFFFE; break;
+    case 2  : DirectLatch_RelayData = DirectLatch_RelayData & 0xFFFD; break;
+    case 3  : DirectLatch_RelayData = DirectLatch_RelayData & 0xFFFB; break;
+    case 4  : DirectLatch_RelayData = DirectLatch_RelayData & 0xFFF7; break;
+    case 5  : DirectLatch_RelayData = DirectLatch_RelayData & 0xFFEF; break;
+    case 6  : DirectLatch_RelayData = DirectLatch_RelayData & 0xFFDF; break;
+    case 7  : DirectLatch_RelayData = DirectLatch_RelayData & 0xFFBF; break;
+    case 8  : DirectLatch_RelayData = DirectLatch_RelayData & 0xFF7F; break;
+    case 9  : DirectLatch_RelayData = DirectLatch_RelayData & 0xFEFF; break;
+    case 10 : DirectLatch_RelayData = DirectLatch_RelayData & 0xFDFF; break;
+    case 11 : DirectLatch_RelayData = DirectLatch_RelayData & 0xFBFF; break;
+    case 12 : DirectLatch_RelayData = DirectLatch_RelayData & 0xF7FF; break;
+    case 13 : DirectLatch_RelayData = DirectLatch_RelayData & 0xEFFF; break;
+    case 14 : DirectLatch_RelayData = DirectLatch_RelayData & 0xDFFF; break;
+    case 15 : DirectLatch_RelayData = DirectLatch_RelayData & 0xBFFF; break;
+    case 16 : DirectLatch_RelayData = DirectLatch_RelayData & 0x7FFF; break;
+    default : break;
+  }
+  DirectLatch_HC595SendData(DirectLatch_RelayData);
+}
+
+void OpenSprinkler::DirectLatch_RelaySET(unsigned int number, bool ON) {
+    if (ON) {
+        DirectLatch_RelayON(number);
+    } else {
+        DirectLatch_RelayOFF(number);
+    }
+}
+
 #endif

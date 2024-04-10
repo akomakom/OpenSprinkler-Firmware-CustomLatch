@@ -1,5 +1,13 @@
+// If defined, the relays are on an HC595 shift register (2) instead of one output per relay
+#define HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16
+#define HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16_HC595_SI_PIN     14
+#define HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16_HC595_SCK_PIN    13
+#define HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16_HC595_RCK_PIN    12
+#define HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16_HC595_G_PIN    5
+#define HW_TYPE_DIRECTLATCH_SUBTYPE_HC595_X16_NUMRELAYS      16
 
 
+// Defines for D1MINI directly connected to an 8 relay module (one output pin per relay)
 static const byte D1MINI_PIN_0   = 16;
 static const byte D1MINI_PIN_1   = 5;
 static const byte D1MINI_PIN_2   = 4;
