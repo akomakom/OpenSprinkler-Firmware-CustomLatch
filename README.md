@@ -55,9 +55,10 @@ The logic is slightly different from the standard Opensprinkler "Latch" type:
 Wiring is dramatically simpler since the ESP8266 is prewired to the relays.  
 First two relays are used for H-Bridge the same way as in Option A
 
-![H-Bridge wiring detail](readme/relay-wiring-closeup.png)
-
 ### Design decisions
+
+H-Bridge close-up
+![H-Bridge wiring detail](readme/relay-wiring-closeup.png)
 
 #### Option A
 * **H-Bridge**: The first two relays are used for the H-Bridge. Both relays are driven from pin D0.  It can also be a single DPDT relay.
