@@ -17,13 +17,16 @@ A small number of valves is supported (number of available GPIO pins minus 1).
 * **?V DC**:  Valve-appropriate voltage. (My whole system works fine from a single 9v 350mA adapter)
 * **Capacitor**: if using a single voltage source like I am (prevents brownouts during valve operation)  I used a 2200uF electrolytic.
 
+![All Parts - Option A](readme/all-parts.png)
+
 #### Option B: A 16 relay ESP8266 integrated board (board with two HC595 shift registers), 14 zones
 
 * **The 16 relay ESP8266 board from China**: These come in 5V, 12V and 24V versions
 * **Power Supply**
-* **Capacitor, as needed**
+* **Capacitor, as needed** (I don't seem to need it, I am running a 24V ESP board off a 12V 400mA adapter and that operates the Melnor valves and the board)
+* Obviously some wires, connectors and enclosure would be helpful, not to mention valves (I'm using gutted timers, see below)
 
-Obviously some wires, connectors and enclosure would be helpful, not to mention valves (I'm using gutted timers, see below)  
+![All Parts - Option B](readme/all-parts-b.png)
 
 ### Limitations
 
@@ -52,6 +55,8 @@ The logic is slightly different from the standard Opensprinkler "Latch" type:
 Wiring is dramatically simpler since the ESP8266 is prewired to the relays.  
 First two relays are used for H-Bridge the same way as in Option A
 
+![H-Bridge wiring detail](readme/relay-wiring-closeup.png)
+
 ### Design decisions
 
 #### Option A
@@ -61,9 +66,8 @@ First two relays are used for H-Bridge the same way as in Option A
 * The **valves** I am using are actually a commodity hose timer (a Melnor 73280), with internal circuitry disconnected and latching valves wired directly to my relays.
 * I needed a **capacitor** to stabilize power supply to the ESP8266 because of voltage drop (or spikes) when valves cycled.  You may not.  I used what I had handy.
 
-![All Parts](readme/all-parts.png)
 
 #### Option B
-* **H-Bridge**: The first two relays are used for the H-Bridge, leaving 14 usable stations.
+* **H-Bridge**: The first two relays are used for the H-Bridge, leaving 14 usable stations.  Jumper wires are the same as for Option A.
 * **Valves**: I am still using gutted Melnor timers (multiple) like in Option A.
 
