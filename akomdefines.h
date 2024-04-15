@@ -68,6 +68,6 @@ static const byte D1MINI_PINS_STATIONS_SIZE = sizeof(D1MINI_PINS_STATIONS)/sizeo
 #define DIRECTLATCH_LATCH_OPEN_JIGGLE_THE_HANDLE 	1
 // ms: how long to turn on relay for.
 // This may need to vary depending on valve/available power
-#define DIRECTLATCH_LATCH_ON_TIME 				100
+#define DIRECTLATCH_LATCH_ON_TIME 				200
 // ms: how long to wait between retries if DIRECTLATCH_RELAY_TRIGGER_COUNT > 1
-#define DIRECTLATCH_LATCH_ATTEMPT_DELAY			500
+#define DIRECTLATCH_LATCH_ATTEMPT_DELAY			200
